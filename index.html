@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pixel Melt Lava Glow with Vignette & Rare Iron</title>
+<title>CaveGame</title>
 <style>
   body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
   canvas { display: block; }
 
-  /* achievements button */
   #achievements {
     position: absolute;
     top: 10px;
@@ -29,7 +28,6 @@
     color: #fff;
   }
 
-  /* notification */
   #notification {
     position: absolute;
     bottom: 20px;
@@ -68,19 +66,21 @@ let foundIron = false;
 const achievementsBtn = document.getElementById('achievements');
 const notification = document.getElementById('notification');
 
-// initialize grid as black with some very rare iron veins
-for (let y = 0; y < rows; y++) {
-  grid[y] = [];
-  meltGrid[y] = [];
-  for (let x = 0; x < cols; x++) {
-    let isIron = Math.random() < 0.005; // 0.5% chance iron
-    const color = '#000';
-    grid[y][x] = color;
-    meltGrid[y][x] = { color: color, melting: false, offset: 0, speed: 0, isIron: isIron };
+function initGrid() {
+  grid = [];
+  meltGrid = [];
+  for (let y = 0; y < rows; y++) {
+    grid[y] = [];
+    meltGrid[y] = [];
+    for (let x = 0; x < cols; x++) {
+      let isIron = Math.random() < 0.005; // 0.5% chance
+      grid[y][x] = '#000';
+      meltGrid[y][x] = { color: '#000', melting: false, offset: 0, speed: 0, isIron };
+    }
   }
 }
+initGrid();
 
-// create smoke particle at pixel coords
 function createSmokeAtPixel(x, y) {
   smokeParticles.push({
     x: x*pixelSize + pixelSize/2 + (Math.random()-0.5)*pixelSize,
@@ -91,13 +91,11 @@ function createSmokeAtPixel(x, y) {
   });
 }
 
-// show notification
 function showNotification() {
   notification.style.opacity = 1;
   setTimeout(() => { notification.style.opacity = 0; }, 2000);
 }
 
-// melt a pixel
 function meltPixel(px, py) {
   if (px < 0 || px >= cols || py < 0 || py >= rows) return;
   const cell = meltGrid[py][px];
@@ -106,19 +104,12 @@ function meltPixel(px, py) {
   cell.melting = true;
   cell.color = 'orange';
   cell.offset = 0;
-  cell.speed = 0.3 + Math.random()*0.5; // slightly faster
+  cell.speed = 0.3 + Math.random()*0.5;
 
   createSmokeAtPixel(px, py);
 
   const interval = setInterval(() => {
     cell.offset += cell.speed;
-
-    // faint lava trail
-    ctx.fillStyle = 'rgba(255,165,0,0.2)';
-    ctx.fillRect(px*pixelSize, py*pixelSize + cell.offset, pixelSize, pixelSize);
-
-    // continuous smoke
-    if (Math.random() < 0.2) createSmokeAtPixel(px, py);
 
     if (cell.offset >= pixelSize) {
       if (py+1 < rows) {
@@ -133,14 +124,13 @@ function meltPixel(px, py) {
           return;
         }
       }
-      // reveal iron if present
       if (cell.isIron && !foundIron) {
         foundIron = true;
         achievementsBtn.classList.add('unlocked');
         showNotification();
         cell.color = '#8b5a2b';
       } else {
-        cell.color = '#000';
+        cell.color = cell.isIron ? '#8b5a2b' : '#000';
       }
       cell.melting = false;
       clearInterval(interval);
@@ -148,50 +138,57 @@ function meltPixel(px, py) {
   }, 16);
 }
 
-// draw everything
 function drawGrid() {
   ctx.clearRect(0, 0, width, height);
+
+  // black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, height);
+
+  // draw lava glow (radial)
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const cell = meltGrid[y][x];
+      if (cell.melting) {
+        const cx = x*pixelSize + pixelSize/2;
+        const cy = y*pixelSize + pixelSize/2;
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 80);
+        gradient.addColorStop(0, 'rgba(255,165,0,0.7)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(cx-80, cy-80, 160, 160);
+      }
+    }
+  }
 
   // draw pixels
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const cell = meltGrid[y][x];
-
-      if (cell.melting) {
-        // strong lava glow
-        ctx.shadowColor = 'orange';
-        ctx.shadowBlur = 25; // much stronger
-      } else {
-        ctx.shadowBlur = 0;
-      }
-
       ctx.fillStyle = cell.color;
       ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
     }
   }
 
-  // draw smoke overlapping pixels
+  // smoke
   for (let i = smokeParticles.length-1; i>=0; i--) {
     const p = smokeParticles[i];
     ctx.fillStyle = `rgba(200,200,200,${p.alpha})`;
-    ctx.shadowColor = 'rgba(255,200,150,0.5)';
-    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
     p.y -= p.speedY;
     p.alpha -= 0.01;
     if (p.alpha <= 0) smokeParticles.splice(i, 1);
   }
 
-  // optional vignette overlay
-  const gradient = ctx.createRadialGradient(width/2, height/2, 50, width/2, height/2, Math.max(width, height)/1.5);
+  // vignette
+  const gradient = ctx.createRadialGradient(width/2, height/2, Math.max(width,height)/6, width/2, height/2, Math.max(width,height)/1.2);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,1)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0,0,width,height);
 }
 
 // mouse melt
@@ -210,42 +207,24 @@ function meltAtMouse(e) {
   }
 }
 
-// random autonomous melting
-function randomMelt() {
-  const x = Math.floor(Math.random()*cols);
-  const y = Math.floor(Math.random()*rows);
-  meltPixel(x, y);
-}
-setInterval(randomMelt, 300);
+// random autonomous melt
+setInterval(() => {
+  meltPixel(Math.floor(Math.random()*cols), Math.floor(Math.random()*rows));
+}, 300);
 
-// animate
 function animate() {
   drawGrid();
   requestAnimationFrame(animate);
 }
 animate();
 
-// handle resize
+// resize
 window.addEventListener('resize', () => {
   width = canvas.width = window.innerWidth;
   height = canvas.height = window.innerHeight;
   cols = Math.floor(width / pixelSize);
   rows = Math.floor(height / pixelSize);
-
-  const newGrid = [];
-  const newMelt = [];
-  for (let y=0; y<rows; y++) {
-    newGrid[y] = [];
-    newMelt[y] = [];
-    for (let x=0; x<cols; x++) {
-      let isIron = Math.random() < 0.005;
-      const color = '#000';
-      newGrid[y][x] = color;
-      newMelt[y][x] = { color: color, melting: false, offset: 0, speed: 0, isIron: isIron };
-    }
-  }
-  grid = newGrid;
-  meltGrid = newMelt;
+  initGrid();
 });
 </script>
 </body>
