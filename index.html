@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pixel Melt with Lava & Smoke</title>
+<title>Pixel Melt with Lava Glow & Smoke</title>
 <style>
   body { margin: 0; overflow: hidden; background: #111; }
   canvas { display: block; }
@@ -37,14 +37,14 @@ for (let y = 0; y < rows; y++) {
   }
 }
 
-// smoke particle
-function createSmoke(x, y) {
+// create smoke particle at pixel coords
+function createSmokeAtPixel(x, y) {
   smokeParticles.push({
-    x: x + Math.random()*pixelSize,
-    y: y + Math.random()*pixelSize,
+    x: x*pixelSize + pixelSize/2 + (Math.random()-0.5)*pixelSize,
+    y: y*pixelSize + pixelSize/2 + (Math.random()-0.5)*pixelSize,
     alpha: 1,
     radius: 2 + Math.random()*2,
-    speedY: 0.3 + Math.random()*0.5
+    speedY: 0.3 + Math.random()*0.3
   });
 }
 
@@ -59,13 +59,17 @@ function meltPixel(px, py) {
   cell.offset = 0;
   cell.speed = 0.2 + Math.random()*0.5;
 
-  createSmoke(px*pixelSize, py*pixelSize);
+  createSmokeAtPixel(px, py);
 
   const interval = setInterval(() => {
     cell.offset += cell.speed;
-    // leave trail
+
+    // leave faint orange trail
     ctx.fillStyle = 'rgba(255,165,0,0.1)';
     ctx.fillRect(px*pixelSize, py*pixelSize + cell.offset, pixelSize, pixelSize);
+
+    // continuous smoke
+    if (Math.random() < 0.2) createSmokeAtPixel(px, py);
 
     if (cell.offset >= pixelSize) {
       if (py+1 < rows) {
@@ -87,23 +91,37 @@ function meltPixel(px, py) {
   }, 16);
 }
 
-// draw grid
+// draw everything
 function drawGrid() {
   ctx.clearRect(0, 0, width, height);
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const cell = meltGrid[y][x];
+
+      // glow effect for lava
+      if (cell.melting) {
+        ctx.shadowColor = 'orange';
+        ctx.shadowBlur = 8;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+
       ctx.fillStyle = cell.color;
       ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
     }
   }
-  // draw smoke
+
+  // draw smoke overlapping pixels
   for (let i = smokeParticles.length-1; i>=0; i--) {
     const p = smokeParticles[i];
     ctx.fillStyle = `rgba(200,200,200,${p.alpha})`;
+    ctx.shadowColor = 'rgba(255,200,150,0.3)';
+    ctx.shadowBlur = 5;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
     ctx.fill();
+    ctx.shadowBlur = 0;
+
     p.y -= p.speedY;
     p.alpha -= 0.01;
     if (p.alpha <= 0) smokeParticles.splice(i, 1);
