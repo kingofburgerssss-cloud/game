@@ -141,13 +141,13 @@ function drawGrid() {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
 
-  // draw pixels with real glow
+  // draw pixels with EXTREME glow
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const cell = meltGrid[y][x];
       if (cell.melting) {
         ctx.shadowColor = 'orange';
-        ctx.shadowBlur = 30;
+        ctx.shadowBlur = 150; // EXTREMELY strong glow
         ctx.fillStyle = 'orange';
         ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
         ctx.shadowBlur = 0;
