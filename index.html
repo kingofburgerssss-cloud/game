@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pixel Melt</title>
+<title>Pixel Melt with Lava & Smoke</title>
 <style>
   body { margin: 0; overflow: hidden; background: #111; }
   canvas { display: block; }
@@ -24,6 +24,7 @@ let rows = Math.floor(height / pixelSize);
 
 let grid = [];
 let meltGrid = [];
+let smokeParticles = [];
 
 // initialize grid with random colors
 for (let y = 0; y < rows; y++) {
@@ -36,6 +37,17 @@ for (let y = 0; y < rows; y++) {
   }
 }
 
+// smoke particle
+function createSmoke(x, y) {
+  smokeParticles.push({
+    x: x + Math.random()*pixelSize,
+    y: y + Math.random()*pixelSize,
+    alpha: 1,
+    radius: 2 + Math.random()*2,
+    speedY: 0.3 + Math.random()*0.5
+  });
+}
+
 // melt a pixel
 function meltPixel(px, py) {
   if (px < 0 || px >= cols || py < 0 || py >= rows) return;
@@ -45,10 +57,16 @@ function meltPixel(px, py) {
   cell.melting = true;
   cell.color = 'orange';
   cell.offset = 0;
-  cell.speed = 0.2 + Math.random()*0.5; // lava wave speed
+  cell.speed = 0.2 + Math.random()*0.5;
+
+  createSmoke(px*pixelSize, py*pixelSize);
 
   const interval = setInterval(() => {
     cell.offset += cell.speed;
+    // leave trail
+    ctx.fillStyle = 'rgba(255,165,0,0.1)';
+    ctx.fillRect(px*pixelSize, py*pixelSize + cell.offset, pixelSize, pixelSize);
+
     if (cell.offset >= pixelSize) {
       if (py+1 < rows) {
         const below = meltGrid[py+1][px];
@@ -62,7 +80,6 @@ function meltPixel(px, py) {
           return;
         }
       }
-      // reached bottom or blocked
       cell.color = grid[py][px];
       cell.melting = false;
       clearInterval(interval);
@@ -80,6 +97,17 @@ function drawGrid() {
       ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
     }
   }
+  // draw smoke
+  for (let i = smokeParticles.length-1; i>=0; i--) {
+    const p = smokeParticles[i];
+    ctx.fillStyle = `rgba(200,200,200,${p.alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+    ctx.fill();
+    p.y -= p.speedY;
+    p.alpha -= 0.01;
+    if (p.alpha <= 0) smokeParticles.splice(i, 1);
+  }
 }
 
 // mouse melt
@@ -91,7 +119,6 @@ canvas.addEventListener('mousemove', e => { if(mouseDown) meltAtMouse(e); });
 function meltAtMouse(e) {
   const x = Math.floor(e.clientX / pixelSize);
   const y = Math.floor(e.clientY / pixelSize);
-  // melt surrounding pixels for smoother effect
   for (let dx=-1; dx<=1; dx++) {
     for (let dy=-1; dy<=1; dy++) {
       meltPixel(x+dx, y+dy);
@@ -105,7 +132,7 @@ function randomMelt() {
   const y = Math.floor(Math.random()*rows);
   meltPixel(x, y);
 }
-setInterval(randomMelt, 100); // random pixel melts every 0.1s
+setInterval(randomMelt, 100);
 
 // animate
 function animate() {
