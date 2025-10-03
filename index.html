@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CaveGame</title>
+<title>Glowing Lava Cave</title>
 <style>
   body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
   canvas { display: block; }
@@ -58,7 +58,6 @@ const pixelSize = 5;
 let cols = Math.floor(width / pixelSize);
 let rows = Math.floor(height / pixelSize);
 
-let grid = [];
 let meltGrid = [];
 let smokeParticles = [];
 let foundIron = false;
@@ -67,19 +66,21 @@ const achievementsBtn = document.getElementById('achievements');
 const notification = document.getElementById('notification');
 
 function initGrid() {
-  grid = [];
   meltGrid = [];
   for (let y = 0; y < rows; y++) {
-    grid[y] = [];
     meltGrid[y] = [];
     for (let x = 0; x < cols; x++) {
       let isIron = Math.random() < 0.005; // 0.5% chance
-      grid[y][x] = '#000';
       meltGrid[y][x] = { color: '#000', melting: false, offset: 0, speed: 0, isIron };
     }
   }
 }
 initGrid();
+
+function showNotification() {
+  notification.style.opacity = 1;
+  setTimeout(() => { notification.style.opacity = 0; }, 2000);
+}
 
 function createSmokeAtPixel(x, y) {
   smokeParticles.push({
@@ -89,11 +90,6 @@ function createSmokeAtPixel(x, y) {
     radius: 2 + Math.random()*2,
     speedY: 0.3 + Math.random()*0.3
   });
-}
-
-function showNotification() {
-  notification.style.opacity = 1;
-  setTimeout(() => { notification.style.opacity = 0; }, 2000);
 }
 
 function meltPixel(px, py) {
@@ -145,28 +141,20 @@ function drawGrid() {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
 
-  // draw lava glow (radial)
+  // draw pixels with real glow
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const cell = meltGrid[y][x];
       if (cell.melting) {
-        const cx = x*pixelSize + pixelSize/2;
-        const cy = y*pixelSize + pixelSize/2;
-        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 80);
-        gradient.addColorStop(0, 'rgba(255,165,0,0.7)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(cx-80, cy-80, 160, 160);
+        ctx.shadowColor = 'orange';
+        ctx.shadowBlur = 30;
+        ctx.fillStyle = 'orange';
+        ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = cell.color;
+        ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
       }
-    }
-  }
-
-  // draw pixels
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      const cell = meltGrid[y][x];
-      ctx.fillStyle = cell.color;
-      ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
     }
   }
 
@@ -177,10 +165,9 @@ function drawGrid() {
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
     ctx.fill();
-
     p.y -= p.speedY;
     p.alpha -= 0.01;
-    if (p.alpha <= 0) smokeParticles.splice(i, 1);
+    if (p.alpha <= 0) smokeParticles.splice(i,1);
   }
 
   // vignette
@@ -206,11 +193,6 @@ function meltAtMouse(e) {
     }
   }
 }
-
-// random autonomous melt
-setInterval(() => {
-  meltPixel(Math.floor(Math.random()*cols), Math.floor(Math.random()*rows));
-}, 300);
 
 function animate() {
   drawGrid();
