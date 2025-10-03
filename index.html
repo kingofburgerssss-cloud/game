@@ -19,8 +19,8 @@ let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
 
 const pixelSize = 5;
-const cols = Math.floor(width / pixelSize);
-const rows = Math.floor(height / pixelSize);
+let cols = Math.floor(width / pixelSize);
+let rows = Math.floor(height / pixelSize);
 
 let grid = [];
 let meltGrid = [];
@@ -32,8 +32,42 @@ for (let y = 0; y < rows; y++) {
   for (let x = 0; x < cols; x++) {
     const color = `hsl(${Math.random()*360}, 80%, 50%)`;
     grid[y][x] = color;
-    meltGrid[y][x] = { color: color, melting: false, offset: 0 };
+    meltGrid[y][x] = { color: color, melting: false, offset: 0, speed: 0 };
   }
+}
+
+// melt a pixel
+function meltPixel(px, py) {
+  if (px < 0 || px >= cols || py < 0 || py >= rows) return;
+  const cell = meltGrid[py][px];
+  if (cell.melting) return;
+
+  cell.melting = true;
+  cell.color = 'orange';
+  cell.offset = 0;
+  cell.speed = 0.2 + Math.random()*0.5; // lava wave speed
+
+  const interval = setInterval(() => {
+    cell.offset += cell.speed;
+    if (cell.offset >= pixelSize) {
+      if (py+1 < rows) {
+        const below = meltGrid[py+1][px];
+        if (!below.melting) {
+          [cell.color, below.color] = [below.color, cell.color];
+          [cell.offset, below.offset] = [0, cell.offset - pixelSize];
+          cell.melting = false;
+          below.melting = true;
+          clearInterval(interval);
+          meltPixel(px, py+1);
+          return;
+        }
+      }
+      // reached bottom or blocked
+      cell.color = grid[py][px];
+      cell.melting = false;
+      clearInterval(interval);
+    }
+  }, 16);
 }
 
 // draw grid
@@ -48,57 +82,58 @@ function drawGrid() {
   }
 }
 
-// melt effect
-function meltPixel(px, py) {
-  if (py >= rows-1) return;
-  const cell = meltGrid[py][px];
-  if (cell.melting) return;
+// mouse melt
+let mouseDown = false;
+canvas.addEventListener('mousedown', e => { mouseDown = true; meltAtMouse(e); });
+canvas.addEventListener('mouseup', e => mouseDown = false);
+canvas.addEventListener('mousemove', e => { if(mouseDown) meltAtMouse(e); });
 
-  cell.melting = true;
-  cell.color = 'orange';
-  cell.offset = 0;
-
-  // slowly move down
-  const interval = setInterval(() => {
-    cell.offset += 0.5; // slow drip
-    if (cell.offset >= pixelSize) {
-      // swap with below
-      if (py+1 < rows) {
-        const below = meltGrid[py+1][px];
-        [cell.color, below.color] = [below.color, cell.color];
-        [cell.offset, below.offset] = [0, cell.offset - pixelSize];
-        [cell.melting, below.melting] = [false, true];
-        clearInterval(interval);
-        meltPixel(px, py+1);
-      } else {
-        // reached bottom
-        cell.color = grid[py][px]; 
-        cell.melting = false;
-        clearInterval(interval);
-      }
-    }
-  }, 16);
-}
-
-// handle clicks
-canvas.addEventListener('mousedown', e => {
+function meltAtMouse(e) {
   const x = Math.floor(e.clientX / pixelSize);
   const y = Math.floor(e.clientY / pixelSize);
+  // melt surrounding pixels for smoother effect
+  for (let dx=-1; dx<=1; dx++) {
+    for (let dy=-1; dy<=1; dy++) {
+      meltPixel(x+dx, y+dy);
+    }
+  }
+}
+
+// random autonomous melting
+function randomMelt() {
+  const x = Math.floor(Math.random()*cols);
+  const y = Math.floor(Math.random()*rows);
   meltPixel(x, y);
-});
+}
+setInterval(randomMelt, 100); // random pixel melts every 0.1s
 
 // animate
 function animate() {
   drawGrid();
   requestAnimationFrame(animate);
 }
-
 animate();
 
 // handle resize
 window.addEventListener('resize', () => {
   width = canvas.width = window.innerWidth;
   height = canvas.height = window.innerHeight;
+  cols = Math.floor(width / pixelSize);
+  rows = Math.floor(height / pixelSize);
+
+  const newGrid = [];
+  const newMelt = [];
+  for (let y=0; y<rows; y++) {
+    newGrid[y] = [];
+    newMelt[y] = [];
+    for (let x=0; x<cols; x++) {
+      const color = (grid[y] && grid[y][x]) ? grid[y][x] : `hsl(${Math.random()*360}, 80%, 50%)`;
+      newGrid[y][x] = color;
+      newMelt[y][x] = { color: color, melting: false, offset: 0, speed: 0 };
+    }
+  }
+  grid = newGrid;
+  meltGrid = newMelt;
 });
 </script>
 </body>
