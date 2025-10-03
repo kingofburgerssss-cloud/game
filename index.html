@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Melt</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #111; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+
+const pixelSize = 5;
+const cols = Math.floor(width / pixelSize);
+const rows = Math.floor(height / pixelSize);
+
+let grid = [];
+
+// initialize grid with random colors
+for (let y = 0; y < rows; y++) {
+  grid[y] = [];
+  for (let x = 0; x < cols; x++) {
+    grid[y][x] = `hsl(${Math.random()*360}, 80%, 50%)`;
+  }
+}
+
+// draw grid
+function drawGrid() {
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      ctx.fillStyle = grid[y][x];
+      ctx.fillRect(x*pixelSize, y*pixelSize, pixelSize, pixelSize);
+    }
+  }
+}
+
+// melt effect
+function meltPixel(px, py) {
+  if (py >= rows-1) return;
+  // swap with pixel below
+  [grid[py][px], grid[py+1][px]] = [grid[py+1][px], grid[py][px]];
+  // recursively melt neighboring pixels
+  if (Math.random() < 0.3) meltPixel(px+1, py);
+  if (Math.random() < 0.3) meltPixel(px-1, py);
+}
+
+// handle clicks
+canvas.addEventListener('mousedown', e => {
+  const x = Math.floor(e.clientX / pixelSize);
+  const y = Math.floor(e.clientY / pixelSize);
+  meltPixel(x, y);
+});
+
+// animate melting continuously
+function animate() {
+  for (let y = rows-2; y >= 0; y--) {
+    for (let x = 0; x < cols; x++) {
+      if (Math.random() < 0.02) meltPixel(x, y);
+    }
+  }
+  drawGrid();
+  requestAnimationFrame(animate);
+}
+
+animate();
+
+// handle resize
+window.addEventListener('resize', () => {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+  // recalc cols/rows
+  const newCols = Math.floor(width / pixelSize);
+  const newRows = Math.floor(height / pixelSize);
+  const newGrid = [];
+  for (let y = 0; y < newRows; y++) {
+    newGrid[y] = [];
+    for (let x = 0; x < newCols; x++) {
+      newGrid[y][x] = (grid[y] && grid[y][x]) ? grid[y][x] : `hsl(${Math.random()*360}, 80%, 50%)`;
+    }
+  }
+  grid.length = 0;
+  grid.push(...newGrid);
+});
+</script>
+</body>
+</html>
