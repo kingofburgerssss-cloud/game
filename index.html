@@ -3,211 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Glowing Lava Cave</title>
+<title>Typing Game Full</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-  canvas { display: block; }
-
-  #achievements {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 120px;
-    height: 40px;
-    background-color: #111;
-    color: #000;
-    text-align: center;
-    line-height: 40px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.3s;
-    user-select: none;
-  }
-  #achievements.unlocked {
-    background-color: #444;
-    color: #fff;
-  }
-
-  #notification {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background-color: rgba(255,140,0,0.9);
-    color: #fff;
-    padding: 10px 15px;
-    border-radius: 5px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.5s;
-  }
+body { background: #111; margin: 0; overflow: hidden; font-family: 'Courier New', monospace; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+#particles { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+#gameContainer { position: relative; z-index:1; display: flex; flex-direction: column; align-items: center; }
+#word { font-size: 3rem; letter-spacing: 2px; margin-bottom: 15px; }
+#timer, #score { margin-top: 8px; font-size: 1.5rem; }
+#flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: red; opacity: 0; pointer-events: none; z-index: 999; }
+#openStore { position: fixed; left: 15px; top: 15px; z-index: 500; padding:10px 20px; border-radius:15px; border:none; background: linear-gradient(145deg, #fff, #ddd); color:#000; font-weight:bold; cursor:pointer; }
+#openStore:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.8); }
+#mainMenu { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(20,20,20,0.95); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
+.menuButton { margin: 10px; padding: 15px 30px; border-radius: 15px; border:none; background: linear-gradient(145deg, #fff, #ddd); color:#000; font-weight:bold; cursor:pointer; transition: all 0.2s; }
+.menuButton:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.8); }
+.green { color: #0f0; }
+#shopOverlay { position: fixed; top:0; left:0; width:100%; height:100%; backdrop-filter: blur(5px); background: rgba(0,0,0,0.5); display:none; z-index:1000; }
+#shop { position: fixed; top:50%; left:50%; transform: translate(-50%, -50%); width: 350px; background: #fff; color:#000; border-radius:20px; padding:20px; display:none; z-index:1001; text-align:center; }
+.shopItem { margin: 10px; padding: 10px; border-radius:15px; background: linear-gradient(145deg,#fff,#ddd); cursor:pointer; transition: all 0.2s; font-weight:bold; }
+.shopItem:hover { transform: scale(1.05); box-shadow:0 0 20px rgba(255,255,255,0.8); }
 </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
-<div id="achievements">Achievements</div>
-<div id="notification">User found Iron!</div>
-
+<canvas id="particles"></canvas>
+<div id="gameContainer">
+  <div id="word"></div>
+  <div id="timer">5</div>
+  <div id="score">Score: 0</div>
+</div>
+<button id="openStore">Open Store</button>
+<div id="flash"></div>
+<div id="mainMenu">
+  <h1>Typing Game</h1>
+  <button class="menuButton" id="startBtn">Start Game</button>
+</div>
+<div id="shopOverlay"></div>
+<div id="shop">
+  <h2>Shop</h2>
+  <div class="shopItem" data-multiplier="2" data-cost="50">2x Points - 50 Points</div>
+  <div class="shopItem" data-multiplier="3" data-cost="500">3x Points - 500 Points</div>
+  <div class="shopItem" data-multiplier="10" data-cost="10000">10x Points - 10,000 Points</div>
+  <button id="closeShop" class="menuButton">Close Shop</button>
+</div>
 <script>
-const canvas = document.getElementById('canvas');
+// Particles
+const canvas = document.getElementById('particles');
 const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particlesArray=[];
+class Particle{constructor(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.size=Math.random()*3+1;this.speedX=Math.random()*0.3-0.15;this.speedY=Math.random()*0.3-0.15;this.opacity=0.5;}update(){this.x+=this.speedX;this.y+=this.speedY;if(this.x<0)this.x=canvas.width;if(this.x>canvas.width)this.x=0;if(this.y<0)this.y=canvas.height;if(this.y>canvas.height)this.y=0;}draw(){ctx.fillStyle=`rgba(255,255,255,${this.opacity})`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();}}
+function initParticles(){particlesArray=[];for(let i=0;i<50;i++)particlesArray.push(new Particle());}
+function animateParticles(){ctx.clearRect(0,0,canvas.width,canvas.height);particlesArray.forEach(p=>{p.update();p.draw();});requestAnimationFrame(animateParticles);}
+initParticles();animateParticles();
 
-let width = canvas.width = window.innerWidth;
-let height = canvas.height = window.innerHeight;
+// Game Logic
+const words=['abacus','abased','abated','abates','abbeys','abbots','abhors','abides','abject','abjure','ablaze','aboard','abodes','abortz','abound','abouts','abrade','abroad','abrupt','absent','absorb','absurd','accent','accept','access','accord','accuse','acetic','aching','acidic','acorns','across','acting','action','active','actors','actual','acuity','acumen','adages','addend','adders','addict','adding','adduce','adhere','adjoin','adjure','adjust','admire','admits','adobes','adopts','adored','adores','adorns','adrift','adroit','adsorb','adults','advise','aerate','aerial','affect','affine','affirm','afford','afraid','agates','ageing','agency','agents','aghast','agility','aginge','agreed','agrees','aiding','ailing','aiming','airing','airman','airmen','airway','aisles','alarms','albums','alerts','aliens','aligns','alikes','alkali','allied','allies','allows','alloys','almond','almost','alongs','alpaca','alphas','alpine','altars','alters','always','amazed','amazes','ambers','ambush','amends','amidst','amnion','amount','amours','ampere','ampler','ampuls','amulet','amuses','analog','anchor','angels','angers','angles','angora','animal','animus','ankles','annals','anneal','annexe','annoys','annual','anodes','answer','antics','anyhow','anyone','anyway'];
+let usedWords=[];
+let currentWord='';
+let typedLetters='';
+let score=0;
+let timer=5;
+let interval;
+let pointMultiplier=1;
 
-const pixelSize = 5;
-let cols = Math.floor(width / pixelSize);
-let rows = Math.floor(height / pixelSize);
+const wordDiv=document.getElementById('word');
+const scoreDiv=document.getElementById('score');
+const timerDiv=document.getElementById('timer');
+const flashDiv=document.getElementById('flash');
+const mainMenu=document.getElementById('mainMenu');
+const startBtn=document.getElementById('startBtn');
+const openStoreBtn=document.getElementById('openStore');
+const shopDiv=document.getElementById('shop');
+const shopOverlay=document.getElementById('shopOverlay');
+const closeShopBtn=document.getElementById('closeShop');
+const shopItems=document.querySelectorAll('.shopItem');
+let gamePaused=false;
 
-let meltGrid = [];
-let smokeParticles = [];
-let foundIron = false;
+function getRandomWord(){if(usedWords.length===words.length) usedWords=[]; let word; do{word=words[Math.floor(Math.random()*words.length)];}while(usedWords.includes(word)); usedWords.push(word); return word;}
+function newWord(){currentWord=getRandomWord(); typedLetters=''; renderWord(); timer=5; timerDiv.textContent=timer;}
+function renderWord(){wordDiv.innerHTML=''; for(let i=0;i<currentWord.length;i++){let span=document.createElement('span'); span.textContent=currentWord[i]; if(i<typedLetters.length) span.classList.add('green'); wordDiv.appendChild(span);}}
+function failFlash(){flashDiv.style.transition='none'; flashDiv.style.opacity='1'; requestAnimationFrame(()=>{flashDiv.style.transition='opacity 0.5s'; flashDiv.style.opacity='0';});}
 
-const achievementsBtn = document.getElementById('achievements');
-const notification = document.getElementById('notification');
+function startGame(){mainMenu.style.display='none'; score=0; pointMultiplier=1; scoreDiv.textContent='Score: 0'; usedWords=[]; newWord(); interval=setInterval(()=>{if(!gamePaused){timer--; timerDiv.textContent=timer;if(timer<=0){failFlash();newWord();}}},1000);}
+startBtn.addEventListener('click', startGame);
 
-function initGrid() {
-  meltGrid = [];
-  for (let y = 0; y < rows; y++) {
-    meltGrid[y] = [];
-    for (let x = 0; x < cols; x++) {
-      let isIron = Math.random() < 0.005; // 0.5% chance
-      meltGrid[y][x] = { color: '#000', melting: false, offset: 0, speed: 0, isIron };
-    }
-  }
-}
-initGrid();
+// Input handling
+document.addEventListener('keydown', (e)=>{if(gamePaused||mainMenu.style.display==='flex') return; const key=e.key; if(key.length===1){if(key.toLowerCase()===currentWord[typedLetters.length].toLowerCase()){typedLetters+=currentWord[typedLetters.length]; renderWord(); if(typedLetters.length===currentWord.length){score+=pointMultiplier; scoreDiv.textContent='Score: '+score; newWord();}}else{failFlash(); newWord();}}});
 
-function showNotification() {
-  notification.style.opacity = 1;
-  setTimeout(() => { notification.style.opacity = 0; }, 2000);
-}
-
-function createSmokeAtPixel(x, y) {
-  smokeParticles.push({
-    x: x*pixelSize + pixelSize/2 + (Math.random()-0.5)*pixelSize,
-    y: y*pixelSize + pixelSize/2 + (Math.random()-0.5)*pixelSize,
-    alpha: 1,
-    radius: 2 + Math.random()*2,
-    speedY: 0.3 + Math.random()*0.3
-  });
-}
-
-function meltPixel(px, py) {
-  if (px < 0 || px >= cols || py < 0 || py >= rows) return;
-  const cell = meltGrid[py][px];
-  if (cell.melting) return;
-
-  cell.melting = true;
-  cell.color = 'orange';
-  cell.offset = 0;
-  cell.speed = 0.3 + Math.random()*0.5;
-
-  createSmokeAtPixel(px, py);
-
-  const interval = setInterval(() => {
-    cell.offset += cell.speed;
-
-    if (cell.offset >= pixelSize) {
-      if (py+1 < rows) {
-        const below = meltGrid[py+1][px];
-        if (!below.melting) {
-          [cell.color, below.color] = [below.color, cell.color];
-          [cell.offset, below.offset] = [0, cell.offset - pixelSize];
-          cell.melting = false;
-          below.melting = true;
-          clearInterval(interval);
-          meltPixel(px, py+1);
-          return;
-        }
-      }
-      if (cell.isIron && !foundIron) {
-        foundIron = true;
-        achievementsBtn.classList.add('unlocked');
-        showNotification();
-        cell.color = '#8b5a2b';
-      } else {
-        cell.color = cell.isIron ? '#8b5a2b' : '#000';
-      }
-      cell.melting = false;
-      clearInterval(interval);
-    }
-  }, 16);
-}
-
-function drawGrid() {
-  ctx.clearRect(0, 0, width, height);
-
-  // black background
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, width, height);
-
-  // draw pixels with EXTREME glow
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      const cell = meltGrid[y][x];
-      if (cell.melting) {
-        ctx.shadowColor = 'orange';
-        ctx.shadowBlur = 150; // EXTREMELY strong glow
-        ctx.fillStyle = 'orange';
-        ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
-        ctx.shadowBlur = 0;
-      } else {
-        ctx.fillStyle = cell.color;
-        ctx.fillRect(x*pixelSize, y*pixelSize + cell.offset, pixelSize, pixelSize);
-      }
-    }
-  }
-
-  // smoke
-  for (let i = smokeParticles.length-1; i>=0; i--) {
-    const p = smokeParticles[i];
-    ctx.fillStyle = `rgba(200,200,200,${p.alpha})`;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
-    ctx.fill();
-    p.y -= p.speedY;
-    p.alpha -= 0.01;
-    if (p.alpha <= 0) smokeParticles.splice(i,1);
-  }
-
-  // vignette
-  const gradient = ctx.createRadialGradient(width/2, height/2, Math.max(width,height)/6, width/2, height/2, Math.max(width,height)/1.2);
-  gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0,0,width,height);
-}
-
-// mouse melt
-let mouseDown = false;
-canvas.addEventListener('mousedown', e => { mouseDown = true; meltAtMouse(e); });
-canvas.addEventListener('mouseup', e => mouseDown = false);
-canvas.addEventListener('mousemove', e => { if(mouseDown) meltAtMouse(e); });
-
-function meltAtMouse(e) {
-  const x = Math.floor(e.clientX / pixelSize);
-  const y = Math.floor(e.clientY / pixelSize);
-  for (let dx=-1; dx<=1; dx++) {
-    for (let dy=-1; dy<=1; dy++) {
-      meltPixel(x+dx, y+dy);
-    }
-  }
-}
-
-function animate() {
-  drawGrid();
-  requestAnimationFrame(animate);
-}
-animate();
-
-// resize
-window.addEventListener('resize', () => {
-  width = canvas.width = window.innerWidth;
-  height = canvas.height = window.innerHeight;
-  cols = Math.floor(width / pixelSize);
-  rows = Math.floor(height / pixelSize);
-  initGrid();
-});
+// Shop
+openStoreBtn.addEventListener('click',()=>{shopOverlay.style.display='block'; shopDiv.style.display='block'; gamePaused=true;});
+closeShopBtn.addEventListener('click',()=>{shopOverlay.style.display='none'; shopDiv.style.display='none'; gamePaused=false;});
+shopItems.forEach(item=>{item.addEventListener('click',()=>{const cost=parseInt(item.dataset.cost); const multiplier=parseInt(item.dataset.multiplier); if(score>=cost){score-=cost; pointMultiplier=multiplier; scoreDiv.textContent='Score: '+score;}});});
 </script>
 </body>
 </html>
